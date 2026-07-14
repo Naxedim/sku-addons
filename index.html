@@ -213,11 +213,19 @@ a.plain{color:var(--accent)}
   var META={
     updated:{fr:'Dernière mise à jour',en:'Last updated',de:'Zuletzt aktualisiert'},
     loading:{fr:'Chargement des informations…',en:'Loading details…',de:'Details werden geladen…'},
-    // n = numeric count (for plural), s = locale-formatted count (for display).
+    // total: n = numeric count (for plural), s = locale-formatted count (display).
+    // latest: s = locale-formatted count for the newest release only.
     dl:{
-      fr:function(n,s){return s+' '+(n>1?'téléchargements':'téléchargement')+' au total';},
-      en:function(n,s){return s+' download'+(n===1?'':'s')+' total';},
-      de:function(n,s){return s+' Download'+(n===1?'':'s')+' insgesamt';}
+      total:{
+        fr:function(n,s){return s+' '+(n>1?'téléchargements':'téléchargement')+' au total';},
+        en:function(n,s){return s+' download'+(n===1?'':'s')+' total';},
+        de:function(n,s){return s+' Download'+(n===1?'':'s')+' insgesamt';}
+      },
+      latest:{
+        fr:function(s){return s+' pour la dernière version';},
+        en:function(s){return s+' for the latest version';},
+        de:function(s){return s+' für die neueste Version';}
+      }
     }
   };
   var LOCALE={fr:'fr-FR',en:'en-GB',de:'de-DE'};
@@ -236,10 +244,13 @@ a.plain{color:var(--accent)}
       var d=state[repo];
       if(!d){ el.textContent=META.loading[curLang]; return; }
       var when=new Intl.DateTimeFormat(loc,{dateStyle:'long',timeStyle:'short'}).format(d.date);
-      var count=d.downloads.toLocaleString(loc);
+      var total=d.downloads.toLocaleString(loc);
+      var latest=d.latest.toLocaleString(loc);
       // Spaces around the middot so screen readers pause naturally between the
-      // two facts instead of running them together ("14:08·2 downloads").
-      el.textContent=META.updated[curLang]+' : '+when+' · '+META.dl[curLang](d.downloads,count);
+      // facts instead of running them together ("14:08·2 downloads").
+      el.textContent=META.updated[curLang]+' : '+when
+        +' · '+META.dl.total[curLang](d.downloads,total)
+        +' · '+META.dl.latest[curLang](latest);
     });
   }
 
@@ -272,7 +283,9 @@ a.plain{color:var(--accent)}
           if(!rel.draft && !rel.prerelease && !latest) latest=rel; // list is newest-first
         });
         latest=latest||list[0];
-        state[repo]={tag:latest.tag_name,date:new Date(latest.published_at||latest.created_at),downloads:total};
+        var latestCount=0;
+        (latest.assets||[]).forEach(function(as){ latestCount+=(as.download_count||0); });
+        state[repo]={tag:latest.tag_name,date:new Date(latest.published_at||latest.created_at),downloads:total,latest:latestCount};
         repos[repo].forEach(function(a){ if(latest.tag_name) a.textContent=repo+' '+latest.tag_name; });
         renderMeta();
       })
